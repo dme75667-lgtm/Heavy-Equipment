@@ -3,11 +3,13 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="معدات ثقيلة 3D">
+        android:label="المعدات الثقيلة"
+        android:allowBackup="true"
+        android:supportsRtl="true">
 
         <activity
             android:name=".MainActivity"
-            android:screenOrientation="portrait"
+            android:screenOrientation="landscape"
             android:exported="true">
 
             <intent-filter>
