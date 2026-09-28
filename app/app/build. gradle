@@ -19,4 +19,4 @@ android {
             minifyEnabled false
         }
     }
-}
+}}
