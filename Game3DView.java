@@ -4,6 +4,7 @@ import android.content.Context;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
+import android.view.MotionEvent;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -11,12 +12,45 @@ import java.nio.FloatBuffer;
 
 public class Game3DView extends GLSurfaceView {
 
+    private final Renderer3D renderer;
+
     public Game3DView(Context context) {
         super(context);
 
         setEGLContextClientVersion(2);
-        setRenderer(new Renderer3D());
+
+        renderer = new Renderer3D();
+        setRenderer(renderer);
+
         setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+
+        if (event.getAction() == MotionEvent.ACTION_MOVE) {
+            float dx = event.getX() - renderer.lastX;
+            float dy = event.getY() - renderer.lastY;
+
+            renderer.cameraX += dx * 0.01f;
+            renderer.cameraY += dy * 0.01f;
+
+            renderer.cameraY =
+                    Math.max(-2.0f, Math.min(4.0f, renderer.cameraY));
+
+            renderer.lastX = event.getX();
+            renderer.lastY = event.getY();
+
+            return true;
+        }
+
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            renderer.lastX = event.getX();
+            renderer.lastY = event.getY();
+            return true;
+        }
+
+        return true;
     }
 
     private static class Renderer3D implements GLSurfaceView.Renderer {
@@ -26,19 +60,28 @@ public class Game3DView extends GLSurfaceView {
         private final float[] model = new float[16];
         private final float[] mvp = new float[16];
 
-        private FloatBuffer vertices;
+        private FloatBuffer cubeBuffer;
         private int program;
 
-        private final float[] cube = {
-                -1, -1, 1,
-                 1, -1, 1,
-                 1,  1, 1,
-                -1,  1, 1,
+        private float cameraX = 0;
+        private float cameraY = 1.5f;
 
-                -1, -1, -1,
-                -1,  1, -1,
-                 1,  1, -1,
-                 1, -1, -1
+        private float lastX;
+        private float lastY;
+
+        private final float[] cubeVertices = {
+
+                // Front
+                -1,-1, 1,
+                 1,-1, 1,
+                 1, 1, 1,
+                -1, 1, 1,
+
+                // Back
+                -1,-1,-1,
+                -1, 1,-1,
+                 1, 1,-1,
+                 1,-1,-1
         };
 
         @Override
@@ -54,25 +97,26 @@ public class Game3DView extends GLSurfaceView {
 
             GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 
-            vertices = ByteBuffer
-                    .allocateDirect(cube.length * 4)
+            cubeBuffer = ByteBuffer
+                    .allocateDirect(cubeVertices.length * 4)
                     .order(ByteOrder.nativeOrder())
                     .asFloatBuffer();
 
-            vertices.put(cube);
-            vertices.position(0);
+            cubeBuffer.put(cubeVertices);
+            cubeBuffer.position(0);
 
             String vertexShader =
                     "attribute vec4 vPosition;" +
                     "uniform mat4 uMVP;" +
                     "void main() {" +
-                    "    gl_Position = uMVP * vPosition;" +
+                    "gl_Position = uMVP * vPosition;" +
                     "}";
 
             String fragmentShader =
                     "precision mediump float;" +
+                    "uniform vec4 uColor;" +
                     "void main() {" +
-                    "    gl_FragColor = vec4(0.18, 0.22, 0.12, 1.0);" +
+                    "gl_FragColor = uColor;" +
                     "}";
 
             int vertex = loadShader(
@@ -89,6 +133,7 @@ public class Game3DView extends GLSurfaceView {
 
             GLES20.glAttachShader(program, vertex);
             GLES20.glAttachShader(program, fragment);
+
             GLES20.glLinkProgram(program);
         }
 
@@ -105,7 +150,8 @@ public class Game3DView extends GLSurfaceView {
                     height
             );
 
-            float ratio = (float) width / height;
+            float ratio =
+                    (float) width / (float) height;
 
             Matrix.frustumM(
                     projection,
@@ -115,7 +161,7 @@ public class Game3DView extends GLSurfaceView {
                     -1,
                     1,
                     3,
-                    20
+                    100
             );
         }
 
@@ -131,9 +177,9 @@ public class Game3DView extends GLSurfaceView {
             Matrix.setLookAtM(
                     view,
                     0,
-                    0,
-                    3,
-                    7,
+                    cameraX,
+                    cameraY + 3,
+                    10,
                     0,
                     0,
                     0,
@@ -142,14 +188,224 @@ public class Game3DView extends GLSurfaceView {
                     0
             );
 
+            drawGround();
+            drawExcavator();
+
+            drawCabin();
+            drawArm();
+            drawBucket();
+        }
+
+        private void drawGround() {
+
             Matrix.setIdentityM(model, 0);
+
+            Matrix.translateM(
+                    model,
+                    0,
+                    0,
+                    -2.2f,
+                    0
+            );
+
+            Matrix.scaleM(
+                    model,
+                    0,
+                    8,
+                    0.2f,
+                    8
+            );
+
+            drawCube(
+                    model,
+                    0.25f,
+                    0.28f,
+                    0.20f,
+                    1
+            );
+        }
+
+        private void drawExcavator() {
+
+            Matrix.setIdentityM(model, 0);
+
+            Matrix.translateM(
+                    model,
+                    0,
+                    0,
+                    -1.0f,
+                    0
+            );
+
+            Matrix.scaleM(
+                    model,
+                    0,
+                    2.4f,
+                    0.55f,
+                    1.3f
+            );
+
+            drawCube(
+                    model,
+                    0.95f,
+                    0.65f,
+                    0.05f,
+                    1
+            );
+
+            drawWheel(-1.5f, -1.55f);
+            drawWheel(1.5f, -1.55f);
+        }
+
+        private void drawWheel(
+                float x,
+                float z) {
+
+            Matrix.setIdentityM(model, 0);
+
+            Matrix.translateM(
+                    model,
+                    0,
+                    x,
+                    -1.55f,
+                    z
+            );
+
+            Matrix.scaleM(
+                    model,
+                    0,
+                    0.45f,
+                    0.45f,
+                    0.45f
+            );
+
+            drawCube(
+                    model,
+                    0.05f,
+                    0.05f,
+                    0.05f,
+                    1
+            );
+        }
+
+        private void drawCabin() {
+
+            Matrix.setIdentityM(model, 0);
+
+            Matrix.translateM(
+                    model,
+                    0,
+                    0.4f,
+                    0.0f,
+                    0
+            );
+
+            Matrix.scaleM(
+                    model,
+                    0,
+                    0.9f,
+                    1.0f,
+                    0.9f
+            );
+
+            drawCube(
+                    model,
+                    0.10f,
+                    0.30f,
+                    0.65f,
+                    1
+            );
+        }
+
+        private void drawArm() {
+
+            Matrix.setIdentityM(model, 0);
+
+            Matrix.translateM(
+                    model,
+                    0,
+                    -1.4f,
+                    0.4f,
+                    0
+            );
+
+            Matrix.rotateM(
+                    model,
+                    0,
+                    -25,
+                    0,
+                    0,
+                    1
+            );
+
+            Matrix.scaleM(
+                    model,
+                    0,
+                    1.8f,
+                    0.25f,
+                    0.25f
+            );
+
+            drawCube(
+                    model,
+                    0.90f,
+                    0.55f,
+                    0.05f,
+                    1
+            );
+        }
+
+        private void drawBucket() {
+
+            Matrix.setIdentityM(model, 0);
+
+            Matrix.translateM(
+                    model,
+                    0,
+                    -2.7f,
+                    -0.2f,
+                    0
+            );
+
+            Matrix.rotateM(
+                    model,
+                    0,
+                    -20,
+                    0,
+                    0,
+                    1
+            );
+
+            Matrix.scaleM(
+                    model,
+                    0,
+                    0.7f,
+                    0.5f,
+                    0.8f
+            );
+
+            drawCube(
+                    model,
+                    0.70f,
+                    0.45f,
+                    0.02f,
+                    1
+            );
+        }
+
+        private void drawCube(
+                float[] matrix,
+                float r,
+                float g,
+                float b,
+                float a) {
 
             Matrix.multiplyMM(
                     mvp,
                     0,
                     view,
                     0,
-                    model,
+                    matrix,
                     0
             );
 
@@ -176,6 +432,12 @@ public class Game3DView extends GLSurfaceView {
                             "uMVP"
                     );
 
+            int colorHandle =
+                    GLES20.glGetUniformLocation(
+                            program,
+                            "uColor"
+                    );
+
             GLES20.glEnableVertexAttribArray(
                     positionHandle
             );
@@ -186,7 +448,7 @@ public class Game3DView extends GLSurfaceView {
                     GLES20.GL_FLOAT,
                     false,
                     0,
-                    vertices
+                    cubeBuffer
             );
 
             GLES20.glUniformMatrix4fv(
@@ -195,6 +457,14 @@ public class Game3DView extends GLSurfaceView {
                     false,
                     mvp,
                     0
+            );
+
+            GLES20.glUniform4f(
+                    colorHandle,
+                    r,
+                    g,
+                    b,
+                    a
             );
 
             GLES20.glDrawArrays(
