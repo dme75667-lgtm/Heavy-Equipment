@@ -22,14 +22,16 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        continue-on-error: true
 
-      - name: Accept Android SDK licenses
+      - name: Accept Android licenses
         run: |
-          yes | sdkmanager --licenses || true
-
-      - name: Install Android SDK packages
-        run: |
-          yes | sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p "$ANDROID_HOME/licenses"
+          printf '%s\n' \
+            '24333f8a63b6825ea9c5514f83c2829b004d1fee' \
+            'd56f5187479451eabf01fb78af6dfcb131a6481e' \
+            '8933bad161af4178b1185d1a37fbf41ea5269c55' \
+            > "$ANDROID_HOME/licenses/android-sdk-license"
 
       - name: Build APK
         run: |
